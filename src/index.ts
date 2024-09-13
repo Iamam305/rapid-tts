@@ -7,11 +7,19 @@ import "dotenv/config";
 import { swaggerUI } from "@hono/swagger-ui";
 import { download_file_from_url } from "./libs/download-file-from-url";
 import fs from "fs";
+import { logger } from 'hono/logger'
+import { compress } from 'hono/compress'
+import { cors } from 'hono/cors'
+
 const app = new OpenAPIHono();
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
+app.use(logger())
+app.use(compress())
+app.use('/', cors())
+
 
 const transcribe_route = createRoute({
   method: "post",
@@ -24,7 +32,7 @@ const transcribe_route = createRoute({
             prompt: z.string().max(128).optional(),
             response_format: z.enum(["json", "text", "verbose_json"]),
             language: z.string().optional(),
-            temperature: z.number().min(0).max(1).optional(),
+            temperature: z.number().min(0).max(1),
             file: z.string().url(),
             translate: z.boolean().optional(),
           }),
@@ -65,16 +73,14 @@ app.openapi(transcribe_route, async (c): Promise<any> => {
     await download_file_from_url(file);
 
   if (download_file_error || !download_file_location) {
-    console.log(
-      `Error downloading file from ${file}: ${download_file_error}`
-    );
+    console.log(`Error downloading file from ${file}: ${download_file_error}`);
     return c.json(
       { error: download_file_error || "something went wrong" },
       { status: 400 }
     );
   }
 
-  let transcription;
+
   if (translate) {
     console.log("Attempting to translate the file");
     const translation = await groq.audio.translations.create({
@@ -82,13 +88,16 @@ app.openapi(transcribe_route, async (c): Promise<any> => {
       model: "whisper-large-v3",
       prompt: prompt,
       response_format,
-
       temperature,
     });
     console.log("Translation completed");
+    // delete translation["x_groq"]
+    return c.json({
+      output: translation,
+    });
   } else {
     console.log("Attempting to transcribe the file");
-    transcription = await groq.audio.transcriptions.create({
+   const transcription = await groq.audio.transcriptions.create({
       file: fs.createReadStream(download_file_location),
       model: "whisper-large-v3",
       prompt: prompt,
@@ -98,11 +107,12 @@ app.openapi(transcribe_route, async (c): Promise<any> => {
       timestamp_granularities: ["word", "segment"],
     });
     console.log("Transcription completed");
+    return c.json({
+      output: transcription,
+    });
   }
 
-  return c.json({
-    output: transcription,
-  });
+  
 });
 
 app.doc("/docs", {
