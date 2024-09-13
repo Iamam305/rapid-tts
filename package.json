@@ -1,0 +1,24 @@
+{
+  "name": "rapid-stt",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild --bundle --outfile=./dist/index.js --platform=node --target=node20 ./src/index.ts",
+    "zip": "zip -j lambda.zip dist/index.js",
+    "update": "aws lambda update-function-code --zip-file fileb://lambda.zip --function-name hello",
+    "deploy": "run-s build zip update",
+    "dev": "tsx watch src/index.ts"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.4",
+    "npm-run-all2": "^6.2.0"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.12.2",
+    "@hono/swagger-ui": "^0.4.1",
+    "@hono/zod-openapi": "^0.16.0",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "groq-sdk": "^0.7.0",
+    "hono": "^4.6.1"
+  }
+}
