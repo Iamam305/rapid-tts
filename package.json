@@ -7,7 +7,7 @@
     "update": "aws lambda update-function-code --zip-file fileb://lambda.zip --function-name hello",
     "deploy": "run-s build zip update",
     "dev": "tsx watch src/index.ts",
-    "start": "node ./dist/index.js"
+    "start": "tsx src/index.ts"
   },
   "devDependencies": {
     "esbuild": "^0.21.4",
@@ -21,6 +21,7 @@
     "axios": "^1.7.7",
     "dotenv": "^16.4.5",
     "groq-sdk": "^0.7.0",
-    "hono": "^4.6.1"
+    "hono": "^4.6.1",
+    "tsx": "^4.19.1"
   }
 }
