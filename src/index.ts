@@ -123,6 +123,7 @@ app.doc("/docs", {
   },
 });
 
+app.get('/ping', async (c) => c.text('pong'))
 app.get("/swagger-ui", swaggerUI({ url: "/docs" }));
 // export const handler = handle(app);
 const port = process.env.PORT || 5000;
