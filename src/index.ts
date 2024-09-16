@@ -24,7 +24,7 @@ app.use(
   bearerAuth({
     headerName: "X-RapidAPI-Proxy-Secret",
     token: process.env.RAPID_API_KEY!,
-    
+
   })
 );
 
@@ -100,6 +100,11 @@ app.openapi(transcribe_route, async (c): Promise<any> => {
     // delete translation["x_groq"]
     return c.json({
       output: translation,
+
+    },{
+      headers: {
+        
+      }
     });
   } else {
     console.log("Attempting to transcribe the file");

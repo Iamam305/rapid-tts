@@ -3,7 +3,9 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
-export const download_file_from_url = async (url: string):Promise<[string|null, string|null|Error]> => {
+export const download_file_from_url = async (
+  url: string
+): Promise<[string | null, string | null | Error]> => {
   console.log(`Downloading file from ${url}`);
   try {
     const allowedExtensions = [
@@ -23,9 +25,13 @@ export const download_file_from_url = async (url: string):Promise<[string|null, 
     const fileExtension = path.extname(url).slice(1).toLowerCase();
 
     if (!allowedExtensions.includes(fileExtension)) {
-        console.log(`Invalid file type. Only flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm are allowed.`);
-        return [null,  "Invalid file type. Only flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm are allowed."]
-    
+      console.log(
+        `Invalid file type. Only flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm are allowed.`
+      );
+      return [
+        null,
+        "Invalid file type. Only flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm are allowed.",
+      ];
     }
 
     // Make a HEAD request to check file size without downloading
@@ -35,8 +41,8 @@ export const download_file_from_url = async (url: string):Promise<[string|null, 
     console.log(`File size: ${fileSize} bytes.`);
 
     if (fileSize > maxSize) {
-        console.log("File size exceeds 25MB limit.");
-        return [null, "File size exceeds 25MB limit."]
+      console.log("File size exceeds 25MB limit.");
+      return [null, "File size exceeds 25MB limit."];
     }
 
     // Generate a unique filename in the temp directory
