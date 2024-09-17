@@ -11,6 +11,8 @@ import { logger } from "hono/logger";
 import { compress } from "hono/compress";
 import { cors } from "hono/cors";
 import { bearerAuth } from "hono/bearer-auth";
+import { downsample_audio } from "./libs/audio-compressor";
+import { get_duration } from "./libs/calc-duration";
 const app = new OpenAPIHono();
 
 const groq = new Groq({
@@ -24,7 +26,6 @@ app.use(
   bearerAuth({
     headerName: "X-RapidAPI-Proxy-Secret",
     token: process.env.RAPID_API_KEY!,
-
   })
 );
 
@@ -87,29 +88,36 @@ app.openapi(transcribe_route, async (c): Promise<any> => {
     );
   }
 
+  const compressed_file_location = await downsample_audio(
+    download_file_location
+  );
+
+  const duration = await get_duration(compressed_file_location);
   if (translate) {
     console.log("Attempting to translate the file");
     const translation = await groq.audio.translations.create({
-      file: fs.createReadStream(download_file_location),
+      file: fs.createReadStream(compressed_file_location),
       model: "whisper-large-v3",
       prompt: prompt,
       response_format,
       temperature,
     });
     console.log("Translation completed");
-    // delete translation["x_groq"]
-    return c.json({
-      output: translation,
 
-    },{
-      headers: {
-        
+    return c.json(
+      {
+        output: translation,
+      },
+      {
+        headers: {
+          "X-RapidAPI-Billing": `Seconds=${duration}`,
+        },
       }
-    });
+    );
   } else {
     console.log("Attempting to transcribe the file");
     const transcription = await groq.audio.transcriptions.create({
-      file: fs.createReadStream(download_file_location),
+      file: fs.createReadStream(compressed_file_location),
       model: "whisper-large-v3",
       prompt: prompt,
       response_format,
@@ -118,9 +126,16 @@ app.openapi(transcribe_route, async (c): Promise<any> => {
       timestamp_granularities: ["word", "segment"],
     });
     console.log("Transcription completed");
-    return c.json({
-      output: transcription,
-    });
+    return c.json(
+      {
+        output: transcription,
+      },
+      {
+        headers: {
+          "X-RapidAPI-Billing": `Seconds=${duration}`,
+        },
+      }
+    );
   }
 });
 

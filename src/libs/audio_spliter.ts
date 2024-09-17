@@ -1,128 +1,65 @@
-// import { execSync } from "child_process";
-// import fs from "fs";
-// import path from "path";
-// import ffprobeStatic from "ffprobe-static";
-// import ffmpegStatic from "ffmpeg-static";
+import fs from "fs";
+import path from "path";
+import os from "os";
+async function splitFileIntoChunks(filePath: string) {
+  const CHUNK_SIZE = 4 * 1024 * 1024; // 24 MB in bytes
+  const chunkFilePaths = [];
 
-// interface AudioChunk {
-//   splitPath: string;
-//   startTime: number;
-//   endTime: number;
-// }
+  try {
+    // Get file stats to determine the total size
+    const stats = await fs.promises.stat(filePath);
+    const totalSize = stats.size;
 
-// export async function splitAudioFile(
-//   inputFilePath: string
-// ): Promise<AudioChunk[]> {
-//   const outputDir = path.join(path.dirname(inputFilePath), "chunks");
-//   if (!fs.existsSync(outputDir)) {
-//     fs.mkdirSync(outputDir);
-//   }
+    // Open the file for reading
+    const fd = await fs.promises.open(filePath, "r");
 
-//   const chunkSize = 25 * 1024 * 1024; // 25 MB in bytes
-//   const totalDuration = await getAudioDuration(inputFilePath);
-//   const chunks: AudioChunk[] = [];
+    let bytesReadTotal = 0;
+    let chunkIndex = 0;
 
-//   let startTime = 0;
-//   let chunkIndex = 0;
+    try {
+      while (bytesReadTotal < totalSize) {
+        // Determine the size of the next chunk
+        const bufferSize = Math.min(CHUNK_SIZE, totalSize - bytesReadTotal);
+        const buffer = Buffer.alloc(bufferSize);
 
-//   while (startTime < totalDuration) {
-//     const endTime = Math.min(
-//       startTime + (await calculateChunkDuration(inputFilePath, chunkSize)),
-//       totalDuration
-//     );
-//     const outputPath = path.join(outputDir, `chunk_${chunkIndex}.mp3`);
+        // Read a chunk from the file
+        const { bytesRead } = await fd.read(
+          buffer,
+          0,
+          bufferSize,
+          bytesReadTotal
+        );
 
-//     await splitAudioChunk(inputFilePath, outputPath, startTime, endTime);
+        // Generate a chunk file name
+        const chunkFileName = `chunk_${crypto.randomUUID()}${path.extname(filePath)}`;
 
-//     chunks.push({
-//       splitPath: outputPath,
-//       startTime,
-//       endTime,
-//     });
+        const chunkFilePath = path.join(os.tmpdir(), chunkFileName);
 
-//     startTime = endTime;
-//     chunkIndex++;
-//   }
+        // Write the chunk to a new file
+        await fs.promises.writeFile(chunkFilePath, buffer.slice(0, bytesRead));
 
-//   return chunks;
-// }
+        // Add the chunk file path to the array
+        chunkFilePaths.push(chunkFilePath);
 
-// async function getAudioDuration(filePath: string): Promise<number> {
-//   try {
-//     const output = execSync(
-//       `"${ffprobeStatic.path}" -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`
-//     );
-//     return parseFloat(output.toString());
-//   } catch (error) {
-//     console.error("Error getting audio duration:", error);
-//     throw error;
-//   }
-// }
-
-// async function calculateChunkDuration(
-//   filePath: string,
-//   chunkSize: number
-// ): Promise<number> {
-//   const fileSizeBytes = fs.statSync(filePath).size;
-//   const totalDuration = await getAudioDuration(filePath);
-//   return (chunkSize / fileSizeBytes) * totalDuration;
-// }
-
-// async function splitAudioChunk(
-//   inputPath: string,
-//   outputPath: string,
-//   startTime: number,
-//   endTime: number
-// ): Promise<void> {
-//   try {
-//     execSync(
-//       `"${ffmpegStatic}" -i "${inputPath}" -ss ${startTime} -to ${endTime} -c copy "${outputPath}"`
-//     );
-//   } catch (error) {
-//     console.error("Error splitting audio chunk:", error);
-//     throw error;
-//   }
-// }
-
-// console.log(
-//   splitAudioFile(
-//     "C:/Users/mwft1/Downloads/9995039357-1722853641-10127-66484009-7547-1722853641.89648.mp3"
-//   )
-// );
-
-
-
-import ffmpegStatic from 'ffmpeg-static';
-import ffmpeg from 'fluent-ffmpeg';
-
-ffmpeg.setFfmpegPath(ffmpegStatic as string);
-
-
-
-ffmpeg()
-
-  // Input file
-  .input("C:/Users/mwft1/Downloads/7723897504_Bhopal _IMG_5321.mov")
-
-  // Audio bit rate
-  .outputOptions('-ab', '192k')
-
-  // Output file
-  .saveToFile('./audio.mp3')
-
-  // Log the percentage of work completed
-  .on('progress', (progress) => {
-    if (progress.percent) {
-      console.log(`Processing: ${Math.floor(progress.percent)}% done`);
+        // Update counters
+        bytesReadTotal += bytesRead;
+        chunkIndex++;
+      }
+    } finally {
+      // Ensure the file descriptor is closed
+      await fd.close();
     }
-  })
 
-  // The callback that is run when FFmpeg is finished
-  .on('end', () => {
-    console.log('FFmpeg has finished.');
-  })
+    // Return the array of chunk file paths
+    return chunkFilePaths;
+  } catch (err) {
+    console.error("Error during file splitting:", err);
+    throw err;
+  }
+}
 
-  // The callback that is run when FFmpeg encountered an error
-  .on('error', (error) => {
-    console.error(error);
-  });
+console.log(
+  await splitFileIntoChunks(
+    "C:/Users/mwft1/Downloads/7838399223-1722856188-10127-66491906-7547-1722856188.92545.mp3"
+  )
+);
